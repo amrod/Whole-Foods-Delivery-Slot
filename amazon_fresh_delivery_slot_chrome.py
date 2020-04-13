@@ -1,64 +1,59 @@
-import bs4
+import os
+import random
+import time
+from datetime import date
 
 from selenium import webdriver
-from selenium.common.exceptions import NoSuchElementException
-
-import sys
-import time
-import os
+from selenium.common.exceptions import WebDriverException
 
 
-def getWFSlot(productUrl):
-   headers = {
-       'User-Agent': 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36',
-   }
+NO_OPEN_SLOTS = "No doorstep delivery windows are available for"
 
-   driver = webdriver.Chrome()
-   driver.get(productUrl)           
-   html = driver.page_source
-   soup = bs4.BeautifulSoup(html)
-   time.sleep(60)
-   no_open_slots = True
 
-   while no_open_slots:
-      driver.refresh()
-      print("refreshed")
-      html = driver.page_source
-      soup = bs4.BeautifulSoup(html)
-      time.sleep(2)
+def check_slots(url):
+    driver = webdriver.Chrome()
+    driver.get(url)
+    time.sleep(60)
+    "nextButton-announce"
 
-      no_open_slots = "No doorstep delivery windows are available for"
-      try:
-         no_slots_from_web = driver.find_element_by_xpath('/html/body/div[5]/div/div/div[2]/div/div/form/div[3]/div[4]/div/div[2]/div[2]/div[6]/div/div[2]/div/div[2]/div/div[20]/div[1]/div[1]/div/div/div/span').text
-         if no_open_slots in no_slots_from_web:
-            pass
-         else:
-            print('SLOTS OPEN!')
+    while True:
+        driver.refresh()
+        time.sleep(5)
+        print("refreshed")
+
+        try:
+            # Ensure we're in checkout page, will raise error if not
+            driver.find_element_by_id("shippingOptionFormId")
+            
+            check_days(driver, 0)
+            button_next = driver.find_element_by_id("nextButton-announce")
+            button_next.click()
+            time.sleep(random.randint(5, 10))
+            check_days(driver, 4)
+
+        except WebDriverException as e:
+            print(e)
+            continue
+
+        time.sleep(random.randint(15, 30))
+
+
+def check_days(driver, offset):
+    for i in range(offset, offset + 4):
+        date_ = "{}-{:02d}-{:02d}".format(date.today().year, date.today().month, date.today().day + i)
+        button_id = "date-button-{}-announce".format(date_)
+
+        print("Checking slots on {}".format(date_))
+
+        button = driver.find_element_by_id(button_id)
+        button.click()
+        time.sleep(1)
+
+        if NO_OPEN_SLOTS not in driver.page_source:
+            print("SLOTS OPEN on {}!".format(date_))
             os.system('say "Slots for delivery opened!"')
-            no_open_slots = False
-            time.sleep(1400)
-      except NoSuchElementException:
-         print('SLOTS OPEN!')
-         os.system('say "Slots for delivery opened!"')
-         no_open_slots = False
-         time.sleep(1400)
+            time.sleep(1800)
+            exit(0)
 
 
-      try:
-         open_slots = soup.find('div', class_ ='orderSlotExists').text()
-         if open_slots != "false":
-            print('SLOTS OPEN!')
-            os.system('say "Slots for delivery opened!"')
-            no_open_slots = False
-            time.sleep(1400)
-      except AttributeError:
-         pass
-
-      
-
-      
-
-
-getWFSlot('https://www.amazon.com/gp/buy/shipoptionselect/handlers/display.html?hasWorkingJavascript=1')
-
-
+check_slots("https://www.amazon.com/gp/buy/shipoptionselect/handlers/display.html?hasWorkingJavascript=1")
