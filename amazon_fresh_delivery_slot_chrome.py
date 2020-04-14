@@ -4,7 +4,7 @@ import time
 from datetime import date
 
 from selenium import webdriver
-from selenium.common.exceptions import WebDriverException
+from selenium.common.exceptions import WebDriverException, NoSuchElementException
 
 
 NO_OPEN_SLOTS = "No doorstep delivery windows are available for"
@@ -14,7 +14,6 @@ def check_slots(url):
     driver = webdriver.Chrome()
     driver.get(url)
     time.sleep(60)
-    "nextButton-announce"
 
     while True:
         driver.refresh()
@@ -32,10 +31,17 @@ def check_slots(url):
             check_days(driver, 4)
 
         except WebDriverException as e:
-            print(e)
+            if "shippingOptionFormId" in str(e):
+                driver.get(url)
+                print("Attempting navigate to the Amazon Fresh's delivery slot selection page. "
+                      "If error continues, try to navigate there manually.")
+                time.sleep(random.randint(5, 10))
+
+            else:
+                print(e)
             continue
 
-        time.sleep(random.randint(15, 30))
+        time.sleep(random.randint(30, 60))
 
 
 def check_days(driver, offset):
@@ -47,7 +53,7 @@ def check_days(driver, offset):
 
         button = driver.find_element_by_id(button_id)
         button.click()
-        time.sleep(1)
+        time.sleep(random.randint(3, 9))
 
         if NO_OPEN_SLOTS not in driver.page_source:
             print("SLOTS OPEN on {}!".format(date_))
